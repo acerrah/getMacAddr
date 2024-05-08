@@ -16,11 +16,11 @@ class arp_packet {
     public:
         arp_packet(const std::string& interface) : interface(interface) {};
         unsigned char* get_mac_address(const std::string& target_ip);
+        int errexit(int errnum);
+        unsigned char* get_local_mac_address();
+        std::string get_local_ip();
+        int create_raw_socket();
         
     private:
         const std::string& interface;
-        int errexit(int errnum);
-        int create_raw_socket();
-        unsigned char* get_local_mac_address();
-        std::string get_local_ip();
 };
