@@ -1,6 +1,5 @@
-# Project Name
-
-A basic library to get mac addresses from any ip with the usage of raw sockets. This is made for educational purposes but if you want to use it in production, why not.
+# GetMacAddr
+A basic library to get mac addresses from any ip with the usage of raw sockets for linux. This is made for educational purposes but if you want to use it in production, why not.
 
 ## Prerequisites
 
