@@ -114,18 +114,11 @@ unsigned char* arp_packet::get_mac_address(const std::string& target_ip) {
     memcpy(packet, &eth_header, sizeof(struct ether_header));
     memcpy(packet + sizeof(struct ether_header), &arp_header, sizeof(struct ether_arp));
 
-
-    // write all the packet in hex
-    for (int i = 0; i < sizeof(packet); i++) {
-        printf("%02x ", packet[i]);
-    }
-
     // Send the packet
     if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr*)&sa, sizeof(struct sockaddr_ll)) < 0) {
         std::cerr << "Failed to send ARP request." << std::endl;
         errexit(errno);
     }
-    std::cout << "ARP request sent successfully." << std::endl;
 
     // Wait for the ARP reply
     unsigned char buffer[42];
