@@ -50,9 +50,8 @@ std::string arp_packet::get_local_ip() {
     strncpy(ifr.ifr_name, inter, IFNAMSIZ-1);
     ioctl(fd, SIOCGIFADDR, &ifr);
     close(fd);
-    for (int i = 2; i < 6; i++) {
-        ip[i - 2] = ifr.ifr_addr.sa_data[i];
-    }   
+    ip = inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+
     return ip;
 }
 ///////////////////////////////
@@ -61,12 +60,17 @@ unsigned char* arp_packet::get_mac_address(const std::string& target_ip) {
     // Create a raw socket
     int sockfd = create_raw_socket();
     
-    // Set the interface to send the ARP request
+    // Bind the socket to the interface
     struct sockaddr_ll sa;
     memset(&sa, 0, sizeof(struct sockaddr_ll));
     sa.sll_family = AF_PACKET;
     sa.sll_protocol = htons(ETH_P_ARP);
-    sa.sll_ifindex = if_nametoindex(interface.c_str());
+    sa.sll_ifindex = if_nametoindex(interface.c_str());  // Replace with your interface name
+
+
+    if (bind(sockfd, (struct sockaddr*)&sa, sizeof(struct sockaddr_ll)) < 0) {
+        errexit(errno);
+    }
 
     // Create the ARP request packet
     struct ether_header eth_header;
@@ -78,12 +82,11 @@ unsigned char* arp_packet::get_mac_address(const std::string& target_ip) {
     for (int i = 0; i < ETH_ALEN; ++i) {
         eth_header.ether_dhost[i] = 0xff;
     }
+    eth_header.ether_type = htons(ETH_P_ARP);
 
     // Set the source MAC address
-    sscanf((const char *)(get_local_mac_address()), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-           &eth_header.ether_shost[0], &eth_header.ether_shost[1],
-           &eth_header.ether_shost[2], &eth_header.ether_shost[3],
-           &eth_header.ether_shost[4], &eth_header.ether_shost[5]);
+    unsigned char* mac = get_local_mac_address();
+    memcpy(eth_header.ether_shost, mac, ETH_ALEN);
 
     // Set the ARP header fields
     arp_header.arp_hrd = htons(ARPHRD_ETHER);
@@ -97,38 +100,46 @@ unsigned char* arp_packet::get_mac_address(const std::string& target_ip) {
 
     // Set the sender IP address
     std::string sender_ip = get_local_ip();
-    inet_pton(AF_INET, sender_ip.c_str(), &arp_header.arp_spa);
+    if (inet_pton(AF_INET, sender_ip.c_str(), &arp_header.arp_spa)< 0) {
+        errexit(errno);
+    }
 
     // Set the target IP address
-    inet_pton(AF_INET, target_ip.c_str(), &arp_header.arp_tpa);
+    if (inet_pton(AF_INET, target_ip.c_str(), &arp_header.arp_tpa) < 0) {
+        errexit(errno);
+    }
 
     // Construct the packet
     char packet[sizeof(struct ether_header) + sizeof(struct ether_arp)];
     memcpy(packet, &eth_header, sizeof(struct ether_header));
     memcpy(packet + sizeof(struct ether_header), &arp_header, sizeof(struct ether_arp));
 
+
+    // write all the packet in hex
+    for (int i = 0; i < sizeof(packet); i++) {
+        printf("%02x ", packet[i]);
+    }
+
     // Send the packet
     if (sendto(sockfd, packet, sizeof(packet), 0, (struct sockaddr*)&sa, sizeof(struct sockaddr_ll)) < 0) {
         std::cerr << "Failed to send ARP request." << std::endl;
         errexit(errno);
     }
+    std::cout << "ARP request sent successfully." << std::endl;
 
     // Wait for the ARP reply
-    if (recvfrom(sockfd, packet, sizeof(packet), 0, NULL, NULL) < 0) {
-        std::cerr << "Failed to receive ARP reply." << std::endl;
+    unsigned char buffer[42];
+    if (recv(sockfd, buffer, sizeof(buffer), 0) < 0) {
         errexit(errno);
     }
 
     // Extract the MAC address from the ARP reply
-    struct ether_arp* arp_reply = (struct ether_arp*)(packet + sizeof(struct ether_header));
+    struct ether_arp* arp_reply = (struct ether_arp*)(buffer + sizeof(struct ether_header));
     unsigned char* ptr = (unsigned char*)arp_reply->arp_sha;
     unsigned char* ret = new unsigned char[6];
-    for (int i = 0; i < 6; i++) {
-        ret[i] = ptr[i];
-    }
+    memcpy(ret, ptr, 6);
 
     // Close the socket
     close(sockfd);
-
     return ret;
 }
