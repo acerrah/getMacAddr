@@ -20,19 +20,13 @@ A basic library to get mac addresses from any ip with the usage of raw sockets f
     cd arppacket
     ```
 
-3. Create a build directory:
-
-    ```shell
-    mkdir build
-    ```
-
-4. Generate the build files using CMake:
+3. Generate the build files using CMake:
 
     ```shell
     cmake -B build
     ```
 
-5. Build the project:
+4. Build the project:
 
     ```shell
     cd build
