@@ -56,7 +56,7 @@ std::string arp_packet::get_local_ip() {
 }
 ///////////////////////////////
 // Gets the MAC address of the target IP address
-unsigned char* arp_packet::get_mac_address(const std::string& target_ip) {
+unsigned char* arp_packet::get_mac_address(const std::string target_ip) {
     // Create a raw socket
     int sockfd = create_raw_socket();
     
